@@ -1,0 +1,22 @@
+Plugin for adjusting URxvt font size dynamically
+
+Installation
+
+	cp font-size ~/.urxvt/font-size
+
+	cat >> .Xresources
+Urxvt.perl-ext: font-size
+Urxvt.keysym.C-equal: perl:font:increase
+Urxvt.keysym.C-minus: perl:font:increase
+^D
+
+
+Usage
+	
+	Ctrl-= increases font size by 1px
+	Ctrl-- decreases font size by 1px
+
+Warning
+	You must be using a font specified in the X manner
+		-whatever-something-*-*...etc,etc
+	for this to work.
