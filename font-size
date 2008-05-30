@@ -1,0 +1,41 @@
+#!perl
+
+sub on_user_command
+{
+	my($self,$cmd) = @_;
+
+	if( $cmd eq "font:increase" ) {
+		font_change_size( $self,  5);
+	} elsif ($cmd eq "font:decrease") {
+		font_change_size( $self,  -5);
+	}
+}
+
+sub font_change_size
+{
+	my($term, $change) = @_;
+
+	my ($fontstring) = $term->resource('font');
+
+	#-xos4-terminus-medium-r-normal-*-12-*-*-*-*-*-*-1
+
+	$term->scr_add_lines("\rDEBUG: my font is $fontstring\n");
+
+	my @font_data = split(/-/,$fontstring);
+
+	# This sucks.  Should use
+	#  xlsfonts -fn '-xos4-terminus-medium-r-normal-*-*-*-72-72-c-*-iso8859-1'
+	# and pick the next/prev one.  However, if we don't know the display
+	# pitch and the locale, we're kinda hosed.
+	$font_data[7] += $change;
+	if( $font_data[7] < 5 ) {
+		$font_data[7] = 5;
+	}
+
+	my $newname = join('-', @font_data);
+
+#	$term->resource( 'font', $newname);
+
+	# And change the font
+	$term->cmd_parse( "\033]710;$newname\007");
+}
