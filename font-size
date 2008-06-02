@@ -1,4 +1,4 @@
-#!perl
+#!/usr/bin/perl
 
 sub on_user_command
 {
@@ -17,26 +17,74 @@ sub font_change_size
 
 	my ($fontstring) = $term->resource('font');
 
+#	$term->scr_add_lines("\r\nCurrent is $fontstring\n");
+
 	#-xos4-terminus-medium-r-normal-*-12-*-*-*-*-*-*-1
 
 	my @fields = qw( foundry family weight slant setwidth style pixelSize pointSize Xresolution Yresolution spacing averageWidth registry encoding );
 
 	my %font;
-
 	$fontstring =~ s/^-//;  # Strip leading - before split
 	@font{@fields} = split(/-/,$fontstring);
 
-	# This sucks.  Should use
-	#  xlsfonts -fn '-xos4-terminus-medium-r-normal-*-*-*-72-72-c-*-iso8859-1'
-	# and pick the next/prev one.  However, if we don't know the display
-	# pitch and the locale, we're kinda hosed.
-	$font{pixelSize} += $change;
-	if( $font{pixelSize} < 5 ) {
-		$font{pixelSize} = 5;
+	if( $font{registry} eq '*' ) {
+		$font{registry} ='iso8859';
 	}
 
-	my $newname = '-' . join('-', @font{@fields});
+	# Blank out the size for the pattern
+	my %pattern = %font;
+	$pattern{pixelSize} = '*';
+	$pattern{pointSize} = '*';
+	$pattern{averageWidth} = '*';
+	# make sure there are no empty fields
+	foreach my $field (@fields) {
+		$pattern{$field} = '*' unless defined($pattern{$field});
+	}
+	my $new_fontstring = '-' . join('-', @pattern{@fields});
+
+	my @possible;
+#	$term->scr_add_lines("\r\nPattern is $new_fontstring\n");
+	open(FOO, "xlsfonts -fn '$new_fontstring' | sort -u |") or die $!;
+	while(<FOO>) {
+		chomp;
+		s/^-//;  # Strip leading - before split
+		my @fontdata = split(/-/,$_);
+
+		# zero-size font is stupid.  Avoid.
+		next if $fontdata[6] == 0;
+
+		push @possible, [ $fontdata[6], "-$_" ];
+#		$term->scr_add_lines("\r\npossibly $fontdata[6] $_\n");
+	}
+	close(FOO);
+
+	if( ! @possible ) {
+		die "No possible fonts!";
+	}
+
+	my $prev_font = undef;
+	my $next_font = undef;
+	foreach my $candidate ( @possible ) {
+		if( $font{pixelSize} > $candidate->[0] ) {
+			$prev_font = $candidate->[1];
+		}
+		if( $font{pixelSize} < $candidate->[0] ) {
+			$next_font = $candidate->[1];
+			last;
+		}
+	}
+
+	my $newname;
+	if( $change > 0 ) {
+		$newname = $next_font;
+	} elsif( $change < 0 ) {
+		$newname = $prev_font;
+	} else {
+		die "Change cannot be zero!";
+	}
+
+#	$term->scr_add_lines("\rDEBUG: new font is $newname\n");
 
 	# And change the font
-	$term->cmd_parse( "\033]710;$newname\007");
+	$term->cmd_parse( "\033]710;$newname\007") if $newname;
 }
